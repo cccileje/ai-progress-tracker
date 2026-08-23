@@ -67,12 +67,6 @@ body {
 }
 
 /* ── Header ── */
-.app__navigation {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
 .header {
   background: #1e293b;
   border-bottom: 2px solid #475569;
@@ -296,6 +290,9 @@ body {
 .week-tabs {
   background: var(--bg);
   border-bottom: 2px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 90;
 }
 
 .week-tabs__scroll {
@@ -865,10 +862,6 @@ body {
 @media (max-width: 640px) {
   html {
     font-size: 16px;
-  }
-
-  .header {
-    position: static;
   }
 
   .header__top {

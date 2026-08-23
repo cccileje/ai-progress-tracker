@@ -84,14 +84,14 @@ export default function App() {
           onImport={handleImport}
           onReset={handleReset}
         />
-
-        <WeekTabs
-          weeks={lessonPlan.weeks}
-          selectedWeek={selectedWeek}
-          onSelectWeek={setSelectedWeek}
-          getWeekProgress={getWeekProgress}
-        />
       </div>
+
+      <WeekTabs
+        weeks={lessonPlan.weeks}
+        selectedWeek={selectedWeek}
+        onSelectWeek={setSelectedWeek}
+        getWeekProgress={getWeekProgress}
+      />
 
       {importMessage && (
         <div className="toast" role="status">
