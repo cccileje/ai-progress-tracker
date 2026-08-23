@@ -240,6 +240,15 @@ export default function useProgress() {
     }
   }, [])
 
+    /**
+   * Replace the entire progress state at once.
+   * Used by cloud sync to load merged data from the cloud.
+   */
+  const loadAllProgress = useCallback((updater) => {
+    // Accept either a new object or an updater function
+    setProgress(updater);
+  }, []);
+
   return {
     progress,
     toggleVideo,
@@ -255,5 +264,6 @@ export default function useProgress() {
     resetProgress,
     exportProgress,
     importProgress,
+    loadAllProgress, // Expose the new function for cloud sync
   }
 }

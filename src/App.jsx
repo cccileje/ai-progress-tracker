@@ -6,6 +6,7 @@
 import React, { useState, useCallback } from 'react'
 import lessonPlan from './data/lessonPlan'
 import useProgress from './hooks/useProgress'
+import { useCloudSync } from './hooks/useCloudSync';
 import Header from './components/Header'
 import WeekTabs from './components/WeekTabs'
 import WeekView from './components/WeekView'
@@ -17,6 +18,7 @@ export default function App() {
   const [importMessage, setImportMessage] = useState(null)
 
   const {
+    progress,
     toggleVideo,
     toggleTask,
     toggleChecklist,
@@ -30,8 +32,11 @@ export default function App() {
     resetProgress,
     exportProgress,
     importProgress,
+    loadAllProgress, // Expose the new function for cloud sync
   } = useProgress()
 
+  useCloudSync(progress, loadAllProgress);
+  
   // Derived data
   const overallProgress = getOverallProgress(lessonPlan)
   const nextIncomplete = getNextIncomplete(lessonPlan)
