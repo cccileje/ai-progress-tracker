@@ -11,6 +11,10 @@ import React, { useState } from 'react'
 export default function VideoItem({ video, isComplete, onToggle }) {
   const [showEmbed, setShowEmbed] = useState(false)
 
+  const handleVideoLinkClick = () => {
+    if (!isComplete) onToggle()
+  }
+
   return (
     <div className={`video-item ${isComplete ? 'video-item--done' : ''}`}>
       {/* Large, accessible checkbox */}
@@ -30,6 +34,7 @@ export default function VideoItem({ video, isComplete, onToggle }) {
             target="_blank"
             rel="noopener noreferrer"
             className="video-item__link"
+            onClick={handleVideoLinkClick}
           >
             {video.title}
           </a>
@@ -47,6 +52,7 @@ export default function VideoItem({ video, isComplete, onToggle }) {
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn--small btn--outline"
+            onClick={handleVideoLinkClick}
           >
             Open on YouTube ↗
           </a>
