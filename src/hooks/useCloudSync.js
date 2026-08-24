@@ -7,7 +7,7 @@
  * - No UI components — this hook does everything behind the scenes.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 const TOKEN_KEY = 'gh-sync-token';
 const GIST_ID_KEY = 'gh-sync-gist-id';
@@ -20,7 +20,7 @@ export function useCloudSync(localProgress, setLocalProgress) {
   const gistId = useRef(localStorage.getItem(GIST_ID_KEY) || '');
   const saveTimer = useRef(null);
   const didLoad = useRef(false);
-  const skipSave = useRef(false);
+  const [cloudReady, setCloudReady] = useState(false);
 
   /* ── merge two progress objects (union of all completed items) ── */
   const merge = useCallback((a, b) => {
@@ -49,12 +49,16 @@ export function useCloudSync(localProgress, setLocalProgress) {
       const res = await fetch(url, {
         method: gistId.current ? 'PATCH' : 'POST',
         headers: {
-          Authorization: `token ${token.current}`,
+          Authorization: `Bearer ${token.current}`,
+          Accept: 'application/vnd.github+json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(`Cloud sync save failed (${res.status}):`, await res.text());
+        return;
+      }
       const result = await res.json();
       if (!gistId.current) {
         gistId.current = result.id;
@@ -74,9 +78,15 @@ export function useCloudSync(localProgress, setLocalProgress) {
       // Find existing gist if we don't have the ID
       if (!gid) {
         const listRes = await fetch('https://api.github.com/gists?per_page=100', {
-          headers: { Authorization: `token ${token.current}` },
+          headers: {
+            Authorization: `Bearer ${token.current}`,
+            Accept: 'application/vnd.github+json',
+          },
         });
-        if (!listRes.ok) return;
+        if (!listRes.ok) {
+          console.warn(`Cloud sync lookup failed (${listRes.status}):`, await listRes.text());
+          return;
+        }
         const gists = await listRes.json();
         const found = gists.find(
           (g) => g.description === GIST_DESCRIPTION && g.files?.[GIST_FILENAME]
@@ -88,20 +98,27 @@ export function useCloudSync(localProgress, setLocalProgress) {
       }
 
       const res = await fetch(`https://api.github.com/gists/${gid}`, {
-        headers: { Authorization: `token ${token.current}` },
+        headers: {
+          Authorization: `Bearer ${token.current}`,
+          Accept: 'application/vnd.github+json',
+        },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(`Cloud sync load failed (${res.status}):`, await res.text());
+        return;
+      }
       const gist = await res.json();
       const file = gist.files?.[GIST_FILENAME];
       if (!file) return;
 
       const cloudData = JSON.parse(file.content);
       if (cloudData?.completedVideos && cloudData?.completedTasks) {
-        skipSave.current = true; // don't re-save what we just loaded
         setLocalProgress((prev) => merge(prev, cloudData));
       }
     } catch (e) {
       console.warn('Cloud sync load failed:', e.message);
+    } finally {
+      setCloudReady(true);
     }
   }, [setLocalProgress, merge]);
 
@@ -125,12 +142,7 @@ export function useCloudSync(localProgress, setLocalProgress) {
 
   /* ── debounced auto-save whenever localProgress changes ── */
   useEffect(() => {
-    if (!token.current || !didLoad.current) return;
-
-    if (skipSave.current) {
-      skipSave.current = false;
-      return;
-    }
+    if (!token.current || !didLoad.current || !cloudReady) return;
 
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
@@ -138,5 +150,5 @@ export function useCloudSync(localProgress, setLocalProgress) {
     }, SAVE_DELAY_MS);
 
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [localProgress, saveToCloud]);
+  }, [localProgress, saveToCloud, cloudReady]);
 }
