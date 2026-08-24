@@ -2,7 +2,7 @@
  * useCloudSync.js
  * Silent background sync to a private GitHub Gist.
  * - Auto-loads cloud progress on page open (merges with local).
- * - Auto-saves 30 seconds after the last change.
+ * - Auto-saves 1 second after the last change.
  * - Token is collected once via a native browser prompt, then stored in localStorage.
  * - No UI components — this hook does everything behind the scenes.
  */
@@ -13,10 +13,10 @@ const TOKEN_KEY = 'gh-sync-token';
 const GIST_ID_KEY = 'gh-sync-gist-id';
 const GIST_DESCRIPTION = 'AI-to-YouTube Learning Tracker Progress';
 const GIST_FILENAME = 'progress.json';
-const SAVE_DELAY_MS = 30000;
+const SAVE_DELAY_MS = 1000;
 
 export function useCloudSync(localProgress, setLocalProgress) {
-  const token = useRef('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');
+  const token = useRef(localStorage.getItem(TOKEN_KEY) || '');
   const gistId = useRef(localStorage.getItem(GIST_ID_KEY) || '');
   const saveTimer = useRef(null);
   const didLoad = useRef(false);
@@ -24,11 +24,13 @@ export function useCloudSync(localProgress, setLocalProgress) {
 
   /* ── merge two progress objects (union of all completed items) ── */
   const merge = useCallback((a, b) => {
-    const m = { videos: {}, tasks: {} };
-    new Set([...Object.keys(a.videos || {}), ...Object.keys(b.videos || {})])
-      .forEach((k) => { m.videos[k] = !!(a.videos?.[k] || b.videos?.[k]); });
-    new Set([...Object.keys(a.tasks || {}), ...Object.keys(b.tasks || {})])
-      .forEach((k) => { m.tasks[k] = !!(a.tasks?.[k] || b.tasks?.[k]); });
+    const m = { completedVideos: {}, completedTasks: {}, completedChecklist: {} };
+    new Set([...Object.keys(a.completedVideos || {}), ...Object.keys(b.completedVideos || {})])
+      .forEach((k) => { m.completedVideos[k] = !!(a.completedVideos?.[k] || b.completedVideos?.[k]); });
+    new Set([...Object.keys(a.completedTasks || {}), ...Object.keys(b.completedTasks || {})])
+      .forEach((k) => { m.completedTasks[k] = !!(a.completedTasks?.[k] || b.completedTasks?.[k]); });
+    new Set([...Object.keys(a.completedChecklist || {}), ...Object.keys(b.completedChecklist || {})])
+      .forEach((k) => { m.completedChecklist[k] = !!(a.completedChecklist?.[k] || b.completedChecklist?.[k]); });
     return m;
   }, []);
 
@@ -94,7 +96,7 @@ export function useCloudSync(localProgress, setLocalProgress) {
       if (!file) return;
 
       const cloudData = JSON.parse(file.content);
-      if (cloudData?.videos && cloudData?.tasks) {
+      if (cloudData?.completedVideos && cloudData?.completedTasks) {
         skipSave.current = true; // don't re-save what we just loaded
         setLocalProgress((prev) => merge(prev, cloudData));
       }
@@ -106,24 +108,18 @@ export function useCloudSync(localProgress, setLocalProgress) {
   /* ── on first mount: prompt for token if needed, then load ── */
   useEffect(() => {
     if (didLoad.current) return;
+
+    if (!token.current) {
+      const entered = window.prompt(
+        'Enter your GitHub Personal Access Token to sync progress across browsers.\n\n' +
+        'The token needs the "gist" scope. Leave blank to use this browser only.'
+      );
+      if (!entered?.trim()) return;
+      token.current = entered.trim();
+      localStorage.setItem(TOKEN_KEY, token.current);
+    }
+
     didLoad.current = true;
-
-    // If no token stored, ask once via native browser prompt
-    // if (!token.current) {
-    //   const entered = prompt(
-    //     'Enter your GitHub Personal Access Token to enable cloud backup.\n\n' +
-    //     'Create one at: github.com/settings/tokens (classic)\n' +
-    //     'Check only the "gist" scope.\n\n' +
-    //     'Leave blank to skip — progress will save to this browser only.'
-    //   );
-    //   if (entered && entered.trim()) {
-    //     token.current = entered.trim();
-    //     localStorage.setItem(TOKEN_KEY, entered.trim());
-    //   } else {
-    //     return; // User skipped — no cloud sync
-    //   }
-    // }
-
     loadFromCloud();
   }, [loadFromCloud]);
 
